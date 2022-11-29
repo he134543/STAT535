@@ -5,16 +5,6 @@ date: "2022-11-24"
 output: powerpoint_presentation
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-```
-
-# Part I
-## Data Scraping
-
-This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
 
 ## Slide with Bullets
 
@@ -24,13 +14,32 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ## Slide with R Output
 
-```{r cars, echo = TRUE}
-summary(cars)
-```
-
 ## Slide with Plot
 
 ```{r pressure}
 plot(pressure)
+```
+
+## Data Collection
+Use web-scarping covered in the course. Use R.
+
+```{r}
+install.packages('rvest')
+```
+
+```{r}
+library(rvest)
+```
+
+```{r}
+site_no <- '08324000'
+link <- paste0("https://waterdata.usgs.gov/monitoring-location/", site_no, "/#parameterCode=00060&period=P7D")
+(link)
+
+drainage_area <- read_html(link)%>%
+                  html_nodes('table') %>% .[2]%>%
+                    html_table() %>% .[[1]] 
+
+
 ```
 
