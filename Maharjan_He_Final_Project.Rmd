@@ -5,46 +5,25 @@ date: "2022-11-24"
 output: powerpoint_presentation
 ---
 
+## Import libaries
 
-## Slide with Bullets
-
-- Bullet 1
-- Bullet 2
-- Bullet 3
-
-## Slide with R Output
-
-## Slide with Plot
-
-```{r pressure}
-plot(pressure)
-```
-
-## Data Collection
-Use web-scarping covered in the course. Use R.
 ```{r}
 # install.packages("dataRetrieval")
 library(dataRetrieval)
-```
-
-```{r}
 suppressMessages(library(tidyverse))
 library(dataRetrieval)
-
-
 library(dplyr)
+library(ggplot2)
 ```
 
+## Data Collection
+
+- Define a function to scrap the time series of the streamflow (discharge).
 ```{r}
-
-
-site_no <- '08324000'
-q_code <- '00060'
-start <- '2000-01-01'
-end <- '2020-12-31'
-
+# Define function to get discharge timeseries
 get_discharge_data <- function(site_no, q_code, start, end) {
   
+  # Build the url link
   url <- paste0('https://waterdata.usgs.gov/nwis/dv?cb_',
         q_code,
         '=on&format=html&site_no=',
@@ -54,39 +33,26 @@ get_discharge_data <- function(site_no, q_code, start, end) {
         '&end_date=', 
         end)
   q_data <- readLines(url)
-  table_pattern <- '^<tr align="center"><td nowrap="nowrap">'
+  
+  # Select lines which contains the data
+  table_pattern <- '<tr align="center"><td nowrap="nowrap">'
   q_table <- str_subset(q_data, table_pattern)
- name_exp <- "<tr align=\"center\"><td nowrap=\"nowrap\"> |</span><sup>([A-Z]?)&nbsp;&nbsp;([a-z]?)</sup></td></tr>"
-
-raw_q_data <- str_replace_all(q_table, name_exp, "")
-
-name_exp2 <- " </td><td nowrap=\"nowrap\"><span>"
-raw_q_data <- str_replace_all(raw_q_data, name_exp2, " ")
-raw_q_data
-q_data_list <- str_split_fixed(raw_q_data, " ", n = Inf)
-q_timeseries_df <- data.frame(q_data_list)
-q_timeseries_df <- q_timeseries_df %>% 
-  # rename(
-  #   'Date' = 'X1',
-  #    'Q_obs' = 'X2'
-  #   ) 
-# %>%
-  mutate(across(c(X2),
-              as.numeric)) %>%
-  mutate(X1 = as.Date(X1, format = "%m/%d/%Y")
-            )
-# return(q_timeseries_df)
+  
+  # Extract dates and flow(ft3/s) from each line
+  dates = as.Date(unlist(str_match_all(q_table, "[0-9]*/[0-9]*/[0-9]*")), "%m/%d/%Y")
+  flows = unlist(str_match_all(q_table, "<span>.*</span>"))
+  flows = as.numeric(str_replace_all(flows, "</?span>", ""))
+  
+  # Put dates and flow together as a matrix
+  Q_df = data.frame(
+    Date = dates,
+    Qobs = flows
+  )
+  return(Q_df)
 }
- 
-
-q_df <- get_discharge_data(site_no, q_code, start, end)
-validate_q <- readNWISdv(siteNumber = site_no, parameterCd = q_code,
-  start, end)
-library(ggplot2)
-# ggplot(data = q_df, aes(Date, Q_obs)) + geom_line()
-
-q_df
 ```
+
+- Define a function to scrap the drainge area of the gauge station
 ```{r}
 get_drainage_area = function(site_no){
    # Scrape the drainage area
@@ -103,51 +69,82 @@ get_drainage_area = function(site_no){
 
 ```
 
-```{r}
-tail(validate_q)
-
-```
+- Validate the scraped data with the data provided by the USGS `dataRetrieval`
 
 ```{r}
-tail(q_df)
-```
-
-```{r}
-
+# Specify the inputs: gauge number, q_code is fixed, start date and end date
 site_no <- '08324000'
 q_code <- '00060'
-start <- '2019-01-01'
+start <- '2000-01-01'
 end <- '2020-12-31'
-q_all_sites <- data.frame(date = seq(from = as.Date("2019-01-02"), to = as.Date(end), by = 1))
+# Use the function we have to scrape
+q_df <- get_discharge_data(site_no, q_code, start, end)
 
-site_df <- read.csv("gauges_Mass.txt", header = FALSE)
-site_list <- site_df[,1]
+# Get authentic streamflow data using the package
+validate_q <- readNWISdv(siteNumber = site_no, parameterCd = q_code,
+  start, end)
 
+# Calculate the error between scraped data and the true data
+scrape_error = q_df$Qobs - validate_q$X_00060_00003
+
+plot(q_df$Date, scrape_error)
+```
+
+- Get streamflow time series and drainge area of the gauges in Massachusetts (TAKE A LOT OF TIME, DO NOT RUN IF YOU HAVE DATA EXISTED IN THE FOLDER!!!)
+
+```{r}
+# Load the site list
+site_list <- readLines("gauges_Mass.txt")
+# create an empty list to save drainage area
+da_area <- numeric(length(site_list))#
+
+counter = 1
 for (site_no in site_list){
-  
-    
-  site_no <- paste0('0',as.character(site_no))
+  try({
+    da_area[counter] = get_drainage_area(site_no)
+    })
+  counter = counter + 1
   print(site_no)
+}
+
+# Note, not all the sites have valid data in the date range
+counter = 1
+for (site_no in site_list){
+  print(paste('Gauge ',site_no,' Scraping start'))
+  
+  # scrape discharge data
   q_df <- try({
     get_discharge_data(site_no, q_code, start, end)
-    
-  }, silent = TRUE)
-  try({
-    q_all_sites[site_no] <- q_df$X2
   }, silent = TRUE)
   
+  # scrape the draiange area
+  try({
+    da_area[counter] = get_drainage_area(site_no)
+    })
+  
+  # Save the streamflow
+  try({
+    write.csv(q_df, paste0("streamflows/", site_no,".csv"), row.names = FALSE)
+  }, silent = TRUE)
+  
+  counter = counter + 1
+  print(paste('Gauge ',site_no,' Done'))
 }
-q_all_sites
 
-
-
-
+# Save the drainge area
+write.csv(data.frame(
+  site_no = site_list,
+  drainage_area = da_area
+), "drainage_area.txt", row.names = FALSE)
 ```
+
+## Calculate Streamflow Statistics and Visualizations
+
 ```{r}
-q_all_sites
+# Note: not all the site have a validate
+gauges = read.csv("drainage_area.txt", colClasses = c("character", "numeric"))
 ```
-
-
+- Import streamflows
 ```{r}
 # sapply(df, function(x) quantile(x, probs = seq(0, 1, 1/4)))
 quantile(x = q_df$Q_obs, probs = c(.05, .5, .95))
