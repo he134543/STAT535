@@ -103,7 +103,7 @@ for (site_no in site_list){
   try({
     da_area[counter] = get_drainage_area(site_no)
     })
-  counter <- counter + 1
+  counter = counter + 1
   print(site_no)
 }
 
@@ -119,7 +119,7 @@ for (site_no in site_list){
   
   # scrape the draiange area
   try({
-    da_area[counter] <- get_drainage_area(site_no)
+    da_area[counter] = get_drainage_area(site_no)
     })
   
   # Save the streamflow
@@ -133,8 +133,8 @@ for (site_no in site_list){
 
 # Save the drainge area
 write.csv(data.frame(
-  site_no <- site_list,
-  drainage_area <- da_area
+  site_no = site_list,
+  drainage_area = da_area
 ), "drainage_area.txt", row.names = FALSE)
 ```
 
@@ -142,66 +142,11 @@ write.csv(data.frame(
 
 ```{r}
 # Note: not all the site have a validate
-# 0 drainage area meant no data avaliable
-
-gauges_area = read.csv("drainage_area.txt", colClasses = c("character", "numeric"))
-
-# Filter gauges which do not have the drainage area data
-gauges_area <- gauges_area %>%
-                filter(drainage_area > 0)
-                
-gauges_area
+gauges = read.csv("drainage_area.txt", colClasses = c("character", "numeric"))
 ```
-- Import streamflows and calculate streamflow statistics (drop site with no drainage area and less than 2 years observations)
-
+- Import streamflows
 ```{r}
-# Note: not all the gauges have enough streamflow data
-site_list <- character()
-Q5s <- numeric()
-Q50s <- numeric()
-Q95s <- numeric()
-
-for (site_no in gauges_area$site_no){
-  flow_df <- read.csv(paste0("streamflows/",
-                            site_no, ".csv")
-                    )
-  # check how many data in the data
-  if (nrow(flow_df) <= 730){
-    # if less 2 years data were scraped
-    # go to next gauge
-    print(paste0("Less than 2 years in the site:", site_no))
-  }else{
-    # more than 2 years data were scraped
-    # the gauge would be saved into the site_list
-    
-    # save the site no
-    site_list = c(site_list, site_no)
-    
-    # Calculate the statistics
-    Q5 = unname(quantile(x = flow_df$Qobs, probs = c(.95), na.rm = TRUE))
-    Q50 = unname(quantile(x = flow_df$Qobs, probs = c(.5), na.rm = TRUE))
-    Q95 = unname(quantile(x = flow_df$Qobs, probs = c(.05), na.rm = TRUE))
-    
-    # save the statistics
-    Q5s = c(Q5s, Q5)
-    Q50s = c(Q50s, Q50)
-    Q95s = c(Q95s, Q95)
-  }
-}
-```
-- Build a new dataframe which contains the site_list, Q5, Q95, Q50, drainage_area
-```{r}
-# The dataframe is based on the gauge area dataframe
-Q_A_df = gauges_area %>%
-            filter(site_no %in% site_list) %>%
-            mutate(Q5 = Q5s) %>%
-            mutate(Q50 = Q50s) %>%
-            mutate(Q95 = Q95s)
-Q_A_df
-```
-
-## Build a regression between drainage_are and Q5, Q50, Q95
-```{r}
-
+# sapply(df, function(x) quantile(x, probs = seq(0, 1, 1/4)))
+quantile(x = q_df$Q_obs, probs = c(.05, .5, .95))
 ```
 
