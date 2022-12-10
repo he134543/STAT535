@@ -166,7 +166,7 @@ for (site_no in gauges_area$site_no){
                             site_no, ".csv")
                     )
   # check how many data in the data
-  if (nrow(flow_df) <= 730){
+  if (nrow(flow_df) <= 15 * 365){
     # if less 2 years data were scraped
     # go to next gauge
     print(paste0("Less than 2 years in the site:", site_no))
@@ -197,11 +197,104 @@ Q_A_df = gauges_area %>%
             mutate(Q5 = Q5s) %>%
             mutate(Q50 = Q50s) %>%
             mutate(Q95 = Q95s)
+Q_A_df = drop_na(Q_A_df)
 Q_A_df
 ```
 
 ## Build a regression between drainage_are and Q5, Q50, Q95
-```{r}
 
+- First, preview the relationship between the drainage area (X) and Q5(Y1), Q50(Y2) and Q95(Y3)
+
+```{r}
+# they are linear related when they were logged
+ggplot(Q_A_df, aes(log(drainage_area), y = log(Q5))) + geom_point()
 ```
+
+```{r}
+ggplot(Q_A_df, aes(log(drainage_area), y = log(Q95))) + geom_point()
+```
+- Define a $\psi$ function to optimize the linear function.
+```{r}
+psi <- function(x, c = 1) {
+  return (
+    ifelse(
+      abs(x) > c,
+      2 * c * abs(x) - c^2,
+      x^2
+    )
+  )
+}
+
+mean_psi_regression <- function(b, data, c = 1) {
+  b1 = b[1]
+  b2 = b[2]
+  Y = data$Q5
+  X = data$drainage_area
+  return( mean ( psi( log(Y) - (b1 + b2 * log(X) ), c ) ) )
+}
+```
+
+- Use `optim` function to get the best values of the coefficients
+```{r}
+best = optim(par = c(1,1), mean_psi_regression, data = Q_A_df, c= 1)
+best
+```
+- Bootstrap to get the distribution of the coefficients.
+```{r}
+# Bootstrap
+n <- nrow(Q_A_df)
+M <- 10000
+b0_bootstrap_sample <- numeric(M)
+b1_bootstrap_sample <- numeric(M)
+
+for (m in 1:M) {
+  bootstrap_sample_idx <- sample(n, replace = TRUE)
+  bstp <- Q_A_df[bootstrap_sample_idx, ]
+  b_psi_GD <- optim(c(0, 0), mean_psi_regression, data = bstp)
+  b0_bootstrap_sample[m] <- b_psi_GD$par[1]
+  b1_bootstrap_sample[m] <- b_psi_GD$par[2]
+}
+```
+
+
+```{r}
+plt1 <- ggplot(data.frame(b0_bootstrap_sample), aes(b0_bootstrap_sample)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.2)
+plt2 <- ggplot(data.frame(b1_bootstrap_sample), aes(b1_bootstrap_sample)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.2)
+mean(b0_bootstrap_sample)
+mean(b1_bootstrap_sample)
+plt1
+plt2
+```
+
+```{r}
+alpha <- 0.05
+bootstrap_CI_0 <- quantile(b0_bootstrap_sample, c(alpha/2, 1 - alpha/2))
+plt1 + geom_vline(xintercept = bootstrap_CI_0, col = "blue")
+```
+```{r}
+alpha <- 0.05
+bootstrap_CI_1 <- quantile(b1_bootstrap_sample, c(alpha/2, 1 - alpha/2))
+plt2 + geom_vline(xintercept = bootstrap_CI_1, col = "blue")
+```
+```{r}
+new_df = Q_A_df %>%
+  mutate(log_darea = log(drainage_area)) %>%
+  mutate(logQ5 = log(Q5)) %>%
+  mutate(logQ95 = log(Q95)) %>%
+  mutate(logQ5_predicted_mean_optim =  best$par[1] + best$par[2] * log_darea) %>%
+  mutate(logQ5_predicted_mean =  mean(b0_bootstrap_sample) + mean(b1_bootstrap_sample) * log_darea) %>%
+  mutate(logQ5_predicted_25 =  bootstrap_CI_0[1] + mean(bootstrap_CI_1[2]) * log_darea) %>%
+  mutate(logQ5_predicted_975 =  bootstrap_CI_0[1] + mean(bootstrap_CI_1[2]) * log_darea)
+
+ggplot(data = new_df, aes(x = log_darea, y = logQ5)) +
+  geom_point() + 
+  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean_optim), color = 'red') + 
+  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean), color = 'green') +
+  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_25), color = 'blue') +
+  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_975), color = 'black')
+```
+
+
 
