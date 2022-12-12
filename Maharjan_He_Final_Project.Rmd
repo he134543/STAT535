@@ -94,48 +94,48 @@ plot(q_df$Date, scrape_error)
 
 ```{r}
 # Load the site list
-site_list <- readLines("gauges_Mass.txt")
+# site_list <- readLines("gauges_Mass.txt")
 # create an empty list to save drainage area
-da_area <- numeric(length(site_list))#
+# da_area <- numeric(length(site_list))#
 
-counter = 1
-for (site_no in site_list){
-  try({
-    da_area[counter] = get_drainage_area(site_no)
-    })
-  counter <- counter + 1
-  print(site_no)
-}
+# counter = 1
+# for (site_no in site_list){
+#   try({
+#     da_area[counter] = get_drainage_area(site_no)
+#     })
+#   counter <- counter + 1
+#   print(site_no)
+# }
 
 # Note, not all the sites have valid data in the date range
-counter = 1
-for (site_no in site_list){
-  print(paste('Gauge ',site_no,' Scraping start'))
-  
-  # scrape discharge data
-  q_df <- try({
-    get_discharge_data(site_no, q_code, start, end)
-  }, silent = TRUE)
-  
-  # scrape the draiange area
-  try({
-    da_area[counter] <- get_drainage_area(site_no)
-    })
-  
-  # Save the streamflow
-  try({
-    write.csv(q_df, paste0("streamflows/", site_no,".csv"), row.names = FALSE)
-  }, silent = TRUE)
-  
-  counter = counter + 1
-  print(paste('Gauge ',site_no,' Done'))
-}
-
-# Save the drainge area
-write.csv(data.frame(
-  site_no <- site_list,
-  drainage_area <- da_area
-), "drainage_area.txt", row.names = FALSE)
+# counter = 1
+# for (site_no in site_list){
+#   print(paste('Gauge ',site_no,' Scraping start'))
+#   
+#   # scrape discharge data
+#   q_df <- try({
+#     get_discharge_data(site_no, q_code, start, end)
+#   }, silent = TRUE)
+#   
+#   # scrape the draiange area
+#   try({
+#     da_area[counter] <- get_drainage_area(site_no)
+#     })
+#   
+#   # Save the streamflow
+#   try({
+#     write.csv(q_df, paste0("streamflows/", site_no,".csv"), row.names = FALSE)
+#   }, silent = TRUE)
+#   
+#   counter = counter + 1
+#   print(paste('Gauge ',site_no,' Done'))
+# }
+# 
+# # Save the drainge area
+# write.csv(data.frame(
+#   site_no <- site_list,
+#   drainage_area <- da_area
+# ), "drainage_area.txt", row.names = FALSE)
 ```
 
 ## Calculate Streamflow Statistics and Visualizations
@@ -225,76 +225,132 @@ psi <- function(x, c = 1) {
   )
 }
 
-mean_psi_regression <- function(b, data, c = 1) {
+mean_psi_regression_q5 <- function(b, data, c = 1) {
   b1 = b[1]
   b2 = b[2]
   Y = data$Q5
   X = data$drainage_area
   return( mean ( psi( log(Y) - (b1 + b2 * log(X) ), c ) ) )
 }
+
+mean_psi_regression_q95 <- function(b, data, c = 1) {
+  b1 = b[1]
+  b2 = b[2]
+  Y = data$Q95
+  X = data$drainage_area
+  return( mean ( psi( log(Y) - (b1 + b2 * log(X) ), c ) ) )
+}
+
 ```
 
 - Use `optim` function to get the best values of the coefficients
 ```{r}
-best = optim(par = c(1,1), mean_psi_regression, data = Q_A_df, c= 1)
-best
+best_q5 = optim(par = c(0,0), mean_psi_regression_q5, data = Q_A_df, c= 1)
+(best_q5)
+
+best_q95 <- optim(par = c(0,0), mean_psi_regression_q95, data = Q_A_df, c = 1)
+(best_q95)
 ```
 - Bootstrap to get the distribution of the coefficients.
 ```{r}
 # Bootstrap
 n <- nrow(Q_A_df)
 M <- 10000
-b0_bootstrap_sample <- numeric(M)
-b1_bootstrap_sample <- numeric(M)
+b0_bootstrap_sample_q5 <- numeric(M)
+b1_bootstrap_sample_q5 <- numeric(M)
+
+b0_bootstrap_sample_q95 <- numeric(M)
+b1_bootstrap_sample_q95 <- numeric(M)
 
 for (m in 1:M) {
   bootstrap_sample_idx <- sample(n, replace = TRUE)
   bstp <- Q_A_df[bootstrap_sample_idx, ]
-  b_psi_GD <- optim(c(0, 0), mean_psi_regression, data = bstp)
-  b0_bootstrap_sample[m] <- b_psi_GD$par[1]
-  b1_bootstrap_sample[m] <- b_psi_GD$par[2]
+  b_psi_GD_q5 <- optim(c(0, 0), mean_psi_regression_q5, data = bstp)
+  b_psi_GD_q95 <- optim(c(0, 0), mean_psi_regression_q95, data = bstp)
+  b0_bootstrap_sample_q5[m] <- b_psi_GD_q5$par[1]
+  b1_bootstrap_sample_q5[m] <- b_psi_GD_q5$par[2]
+  b0_bootstrap_sample_q95[m] <- b_psi_GD_q95$par[1]
+  b1_bootstrap_sample_q95[m] <- b_psi_GD_q95$par[2]
+  
 }
 ```
 
-
+- q5 bootstrap samples plot
 ```{r}
-plt1 <- ggplot(data.frame(b0_bootstrap_sample), aes(b0_bootstrap_sample)) +
+q5_plt1 <- ggplot(data.frame(b0_bootstrap_sample_q5), aes(b0_bootstrap_sample_q5)) +
   geom_histogram(aes(y = ..density..), binwidth = 0.2)
-plt2 <- ggplot(data.frame(b1_bootstrap_sample), aes(b1_bootstrap_sample)) +
+q5_plt2 <- ggplot(data.frame(b1_bootstrap_sample_q5), aes(b1_bootstrap_sample_q5)) +
   geom_histogram(aes(y = ..density..), binwidth = 0.2)
-mean(b0_bootstrap_sample)
-mean(b1_bootstrap_sample)
-plt1
-plt2
+mean(b0_bootstrap_sample_q5)
+mean(b1_bootstrap_sample_q5)
+q5_plt1
+q5_plt2
+```
+- q95 bootstrap samples plot
+```{r}
+q95_plt1 <- ggplot(data.frame(b0_bootstrap_sample_q95), aes(b0_bootstrap_sample_q95)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.2)
+q95_plt2 <- ggplot(data.frame(b1_bootstrap_sample_q95), aes(b1_bootstrap_sample_q95)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.2)
+mean(b0_bootstrap_sample_q95)
+mean(b1_bootstrap_sample_q95)
+q95_plt1
+q95_plt2
 ```
 
+
+- Obtain q5 confidence interval and plot
 ```{r}
 alpha <- 0.05
-bootstrap_CI_0 <- quantile(b0_bootstrap_sample, c(alpha/2, 1 - alpha/2))
-plt1 + geom_vline(xintercept = bootstrap_CI_0, col = "blue")
+q5_bootstrap_CI_0 <- quantile(b0_bootstrap_sample_q5, c(alpha/2, 1 - alpha/2))
+q5_bootstrap_CI_1 <- quantile(b1_bootstrap_sample_q5, c(alpha/2, 1 - alpha/2))
+q5_plt1 + geom_vline(xintercept = q5_bootstrap_CI_0, col = "blue")
+q5_plt2 + geom_vline(xintercept = q5_bootstrap_CI_1, col = "blue")
 ```
+
+
+- Obtain q95 confidence interval and plot
 ```{r}
 alpha <- 0.05
-bootstrap_CI_1 <- quantile(b1_bootstrap_sample, c(alpha/2, 1 - alpha/2))
-plt2 + geom_vline(xintercept = bootstrap_CI_1, col = "blue")
+q95_bootstrap_CI_0 <- quantile(b0_bootstrap_sample_q95, c(alpha/2, 1 - alpha/2))
+q95_bootstrap_CI_1 <- quantile(b1_bootstrap_sample_q95, c(alpha/2, 1 - alpha/2))
+q95_plt1 + geom_vline(xintercept = q95_bootstrap_CI_0, col = "blue")
+q95_plt2 + geom_vline(xintercept = q95_bootstrap_CI_1, col = "blue")
 ```
+
 ```{r}
 new_df = Q_A_df %>%
   mutate(log_darea = log(drainage_area)) %>%
   mutate(logQ5 = log(Q5)) %>%
   mutate(logQ95 = log(Q95)) %>%
-  mutate(logQ5_predicted_mean_optim =  best$par[1] + best$par[2] * log_darea) %>%
-  mutate(logQ5_predicted_mean =  mean(b0_bootstrap_sample) + mean(b1_bootstrap_sample) * log_darea) %>%
-  mutate(logQ5_predicted_25 =  bootstrap_CI_0[1] + mean(bootstrap_CI_1[2]) * log_darea) %>%
-  mutate(logQ5_predicted_975 =  bootstrap_CI_0[1] + mean(bootstrap_CI_1[2]) * log_darea)
+  # mutate(logQ5_predicted_mean_optim =  best$par[1] + best$par[2] * log_darea) %>%
+  mutate(logQ5_predicted_mean =  mean(b0_bootstrap_sample_q5) + mean(b1_bootstrap_sample_q5) * log_darea)  %>%
+  # mutate(logQ95_predicted_mean_optim =  best$par[1] + best$par[2] * log_darea) %>%
+  mutate(logQ95_predicted_mean =  mean(b0_bootstrap_sample_q95) + mean(b1_bootstrap_sample_q95) * log_darea) %>%
+  mutate(logQ5_predicted_25 =  mean(q5_bootstrap_CI_0[1]) + mean(q5_bootstrap_CI_1[1]) * log_darea) %>%
+  mutate(logQ5_predicted_975 =  mean(q5_bootstrap_CI_0[2]) + mean(q5_bootstrap_CI_1[2]) * log_darea) %>%
+  mutate(logQ95_predicted_25 =  mean(q95_bootstrap_CI_0[1]) + mean(q95_bootstrap_CI_1[1]) * log_darea) %>%
+  mutate(logQ95_predicted_975 =  mean(q95_bootstrap_CI_0[2]) + mean(q95_bootstrap_CI_1[2]) * log_darea)
 
-ggplot(data = new_df, aes(x = log_darea, y = logQ5)) +
-  geom_point() + 
-  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean_optim), color = 'red') + 
-  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean), color = 'green') +
-  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_25), color = 'blue') +
-  geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_975), color = 'black')
+q5_reg_plots <- ggplot(data = new_df, aes(x = log_darea, y = logQ5)) +
+            geom_point() + 
+            # geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean_optim), color = 'red') + 
+            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean), color = 'green') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_25), color = 'blue') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_975), color = 'black')
+
+q95_reg_plots <- ggplot(data = new_df, aes(x = log_darea, y = logQ95)) +
+            geom_point() + 
+            # geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean_optim), color = 'red') + 
+            geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean), color = 'green') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_25), color = 'blue') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_975), color = 'black')
+
 ```
 
+
+```{r}
+q5_reg_plots
+```
 
 
