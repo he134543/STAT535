@@ -250,6 +250,7 @@ mean_psi_regression_q95 <- function(b, data, c = 1) {
   return( mean ( psi( log(Y) - (b1 + b2 * log(X) ), c ) ) )
 }
 
+
 ```
 
 - Use `optim` function to get the best values of the coefficients
@@ -262,6 +263,23 @@ best_q95 <- optim(par = c(0,0), mean_psi_regression_q95, data = Q_A_df, c = 1)
 
 best_q5$value
 ```
+R-squared of the actual data
+```{r}
+actual_orig_q5 <- log(Q_A_df['Q5'])
+predicts_orig_q5 <- best_q5$par[1] + best_q5$par[2] * log(Q_A_df['drainage_area'])
+  
+r2_orig_q5 <- r_squared(preds = predicts_orig_q5$drainage_area, actual = actual_orig_q5$Q5)
+r2_orig_q5
+
+actual_orig_q95 <- log(Q_A_df['Q95'])
+predicts_orig_q95 <- best_q95$par[1] + best_q95$par[2] * log(Q_A_df['drainage_area'])
+  
+r2_orig_q95 <- r_squared(preds = predicts_orig_q95$drainage_area, actual = actual_orig_q95$Q95)
+r2_orig_q95
+```
+
+
+
 - Bootstrap to get the distribution of the coefficients.
 ```{r}
 # Bootstrap
@@ -296,36 +314,19 @@ for (m in 1:M) {
   
 }
 
-mean(r2_q5)
-mean(r2_q95)
-```
 
+```
 - q5 bootstrap samples plot
 ```{r}
 q5_plt1 <- ggplot(data.frame(b0_bootstrap_sample_q5), aes(b0_bootstrap_sample_q5)) +
-  geom_histogram(aes(y = ..density..), binwidth = 0.2)
+  geom_histogram(aes(y = ..density..), binwidth = 0.02)
 q5_plt2 <- ggplot(data.frame(b1_bootstrap_sample_q5), aes(b1_bootstrap_sample_q5)) +
-  geom_histogram(aes(y = ..density..), binwidth = 0.2)
+  geom_histogram(aes(y = ..density..), binwidth = 0.02)
 mean(b0_bootstrap_sample_q5)
 mean(b1_bootstrap_sample_q5)
 q5_plt1
 q5_plt2
-```
-- q95 bootstrap samples plot
-```{r}
-q95_plt1 <- ggplot(data.frame(b0_bootstrap_sample_q95), aes(b0_bootstrap_sample_q95)) +
-  geom_histogram(aes(y = ..density..), binwidth = 0.2)
-q95_plt2 <- ggplot(data.frame(b1_bootstrap_sample_q95), aes(b1_bootstrap_sample_q95)) +
-  geom_histogram(aes(y = ..density..), binwidth = 0.2)
-mean(b0_bootstrap_sample_q95)
-mean(b1_bootstrap_sample_q95)
-q95_plt1
-q95_plt2
-```
 
-
-- Obtain q5 confidence interval and plot
-```{r}
 alpha <- 0.05
 q5_bootstrap_CI_0 <- quantile(b0_bootstrap_sample_q5, c(alpha/2, 1 - alpha/2))
 q5_bootstrap_CI_1 <- quantile(b1_bootstrap_sample_q5, c(alpha/2, 1 - alpha/2))
@@ -333,15 +334,43 @@ q5_plt1 + geom_vline(xintercept = q5_bootstrap_CI_0, col = "blue")
 q5_plt2 + geom_vline(xintercept = q5_bootstrap_CI_1, col = "blue")
 ```
 
-
-- Obtain q95 confidence interval and plot
+- q95 bootstrap samples plot
 ```{r}
+q95_plt1 <- ggplot(data.frame(b0_bootstrap_sample_q95), aes(b0_bootstrap_sample_q95)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.02)
+q95_plt2 <- ggplot(data.frame(b1_bootstrap_sample_q95), aes(b1_bootstrap_sample_q95)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.02)
+mean(b0_bootstrap_sample_q95)
+mean(b1_bootstrap_sample_q95)
+q95_plt1
+q95_plt2
+
 alpha <- 0.05
 q95_bootstrap_CI_0 <- quantile(b0_bootstrap_sample_q95, c(alpha/2, 1 - alpha/2))
 q95_bootstrap_CI_1 <- quantile(b1_bootstrap_sample_q95, c(alpha/2, 1 - alpha/2))
 q95_plt1 + geom_vline(xintercept = q95_bootstrap_CI_0, col = "blue")
 q95_plt2 + geom_vline(xintercept = q95_bootstrap_CI_1, col = "blue")
 ```
+
+
+
+
+r-squared resampled distribution plot
+```{r}
+rsq_q5_plt <- ggplot(data.frame(r2_q5), aes(r2_q5)) +   geom_histogram(aes(y = ..density..), binwidth = 0.02)
+  
+rsq_q95_plt <- ggplot(data.frame(r2_q95), aes(r2_q95)) +   geom_histogram(aes(y = ..density..), binwidth = 0.02)
+
+rsq_q5_plt
+rsq_q95_plt
+
+alpha <- 0.05
+q5_r_squared <- quantile(r2_q5, c(alpha/2, 1 - alpha/2))
+q95_r_squared <- quantile(r2_q95, c(alpha/2, 1 - alpha/2))
+rsq_q5_plt + geom_vline(xintercept = q5_r_squared, col = "blue")
+rsq_q95_plt + geom_vline(xintercept = q95_r_squared, col = "blue")
+```
+
 
 ```{r}
 new_df = Q_A_df %>%
