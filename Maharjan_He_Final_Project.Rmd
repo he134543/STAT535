@@ -225,6 +225,15 @@ psi <- function(x, c = 1) {
   )
 }
 
+r_squared <- function(preds, actual){
+
+rss <- sum((preds - actual) ^ 2)  ## residual sum of squares
+tss <- sum((actual - mean(actual)) ^ 2)  ## total sum of squares
+rsq <- 1 - rss/tss
+return(rsq)
+
+}
+
 mean_psi_regression_q5 <- function(b, data, c = 1) {
   b1 = b[1]
   b2 = b[2]
@@ -250,6 +259,8 @@ best_q5 = optim(par = c(0,0), mean_psi_regression_q5, data = Q_A_df, c= 1)
 
 best_q95 <- optim(par = c(0,0), mean_psi_regression_q95, data = Q_A_df, c = 1)
 (best_q95)
+
+best_q5$value
 ```
 - Bootstrap to get the distribution of the coefficients.
 ```{r}
@@ -261,6 +272,8 @@ b1_bootstrap_sample_q5 <- numeric(M)
 
 b0_bootstrap_sample_q95 <- numeric(M)
 b1_bootstrap_sample_q95 <- numeric(M)
+r2_q5 <- numeric(M)
+r2_q95 <- numeric(M)
 
 for (m in 1:M) {
   bootstrap_sample_idx <- sample(n, replace = TRUE)
@@ -269,10 +282,22 @@ for (m in 1:M) {
   b_psi_GD_q95 <- optim(c(0, 0), mean_psi_regression_q95, data = bstp)
   b0_bootstrap_sample_q5[m] <- b_psi_GD_q5$par[1]
   b1_bootstrap_sample_q5[m] <- b_psi_GD_q5$par[2]
+  actual_q5 <- log(bstp['Q5'])
+  predicts_q5 <- b0_bootstrap_sample_q5[m] + b1_bootstrap_sample_q5[m] * log(bstp['drainage_area'])
+  
+  r2_q5[m] <- r_squared(preds = predicts_q5$drainage_area, actual = actual_q5$Q5)
   b0_bootstrap_sample_q95[m] <- b_psi_GD_q95$par[1]
   b1_bootstrap_sample_q95[m] <- b_psi_GD_q95$par[2]
+  actual_q95 <- log(bstp['Q95'])
+  predicts_q95 <- b0_bootstrap_sample_q95[m] + b1_bootstrap_sample_q95[m] * log(bstp['drainage_area'])
+  
+  r2_q95[m] <- r_squared(preds = predicts_q95$drainage_area, actual = actual_q95$Q95)
+  
   
 }
+
+mean(r2_q5)
+mean(r2_q95)
 ```
 
 - q5 bootstrap samples plot
