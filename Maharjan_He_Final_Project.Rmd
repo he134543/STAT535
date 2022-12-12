@@ -332,25 +332,28 @@ new_df = Q_A_df %>%
   mutate(logQ95_predicted_25 =  mean(q95_bootstrap_CI_0[1]) + mean(q95_bootstrap_CI_1[1]) * log_darea) %>%
   mutate(logQ95_predicted_975 =  mean(q95_bootstrap_CI_0[2]) + mean(q95_bootstrap_CI_1[2]) * log_darea)
 
+
+
 q5_reg_plots <- ggplot(data = new_df, aes(x = log_darea, y = logQ5)) +
             geom_point() + 
-            # geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean_optim), color = 'red') + 
-            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean), color = 'green') +
-            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_25), color = 'blue') +
-            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_975), color = 'black')
-
-q95_reg_plots <- ggplot(data = new_df, aes(x = log_darea, y = logQ95)) +
-            geom_point() + 
-            # geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean_optim), color = 'red') + 
+            # geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean_optim), color = 'red') +
             geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean), color = 'green') +
             geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_25), color = 'blue') +
-            geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_975), color = 'black')
+            geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_975), color = 'blue')
 
+q5_reg_plots
 ```
 
 
 ```{r}
-q5_reg_plots
+q95_reg_plots <- ggplot(data = new_df, aes(x = log_darea, y = logQ95)) +
+            geom_point() + 
+            # geom_line(data = new_df, aes(x = log_darea, y = logQ5_predicted_mean_optim), color = 'red') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_mean), color = 'green') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_25), color = 'blue') +
+            geom_line(data = new_df, aes(x = log_darea, y = logQ95_predicted_975), color = 'blue')
+
+q95_reg_plots
 ```
 
 
