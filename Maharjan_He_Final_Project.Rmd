@@ -90,6 +90,11 @@ scrape_error = q_df$Qobs - validate_q$X_00060_00003
 plot(q_df$Date, scrape_error)
 ```
 
+```{r}
+ggplot(data = q_df, aes(x = Date, y = Qobs)) +
+  geom_line(aes(x = Date, y = Qobs), color = 'black')
+```
+
 - Get streamflow time series and drainge area of the gauges in Massachusetts (TAKE A LOT OF TIME, DO NOT RUN IF YOU HAVE DATA EXISTED IN THE FOLDER!!!)
 
 ```{r}
@@ -138,7 +143,7 @@ plot(q_df$Date, scrape_error)
 # ), "drainage_area.txt", row.names = FALSE)
 ```
 
-## Calculate Streamflow Statistics and Visualizations
+## Calculate Streamflow Statistics
 
 ```{r}
 # Note: not all the site have a validate
@@ -189,6 +194,7 @@ for (site_no in gauges_area$site_no){
   }
 }
 ```
+
 - Build a new dataframe which contains the site_list, Q5, Q95, Q50, drainage_area
 ```{r}
 # The dataframe is based on the gauge area dataframe
@@ -310,8 +316,6 @@ for (m in 1:M) {
   predicts_q95 <- b0_bootstrap_sample_q95[m] + b1_bootstrap_sample_q95[m] * log(bstp['drainage_area'])
   
   r2_q95[m] <- r_squared(preds = predicts_q95$drainage_area, actual = actual_q95$Q95)
-  
-  
 }
 
 
@@ -367,8 +371,8 @@ rsq_q95_plt
 alpha <- 0.05
 q5_r_squared <- quantile(r2_q5, c(alpha/2, 1 - alpha/2))
 q95_r_squared <- quantile(r2_q95, c(alpha/2, 1 - alpha/2))
-rsq_q5_plt + geom_vline(xintercept = q5_r_squared, col = "blue")
-rsq_q95_plt + geom_vline(xintercept = q95_r_squared, col = "blue")
+rsq_q5_plt + geom_vline(xintercept = q5_r_squared, col = "blue") + geom_vline(xintercept = r2_orig_q5, col = "red")
+rsq_q95_plt + geom_vline(xintercept = q95_r_squared, col = "blue") + geom_vline(xintercept = r2_orig_q95, col = "red")
 ```
 
 
