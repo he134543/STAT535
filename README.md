@@ -37,6 +37,7 @@ USGS Information Product Data System (IPDS) no.: (TBD)
 -   RAM: at least 2GB
 -   GPU: not required
 
+
 ## 2. Install packages (Environmental Configuration)
 
 Run commands:
